@@ -19,8 +19,7 @@ package com.hazelcast.config;
 import com.hazelcast.memory.MemorySize;
 import com.hazelcast.memory.MemoryUnit;
 
-import static com.hazelcast.util.Preconditions.checkPositive;
-import static com.hazelcast.util.Preconditions.isNotNull;
+import static com.hazelcast.util.Preconditions.*;
 
 /**
  * Configures native memory region.
@@ -65,6 +64,8 @@ public class NativeMemoryConfig {
     private int pageSize = DEFAULT_PAGE_SIZE;
     private float metadataSpacePercentage = DEFAULT_METADATA_SPACE_PERCENTAGE;
 
+    private NvramMemoryConfig nvramMemoryConfig = new NvramMemoryConfig();
+
     public NativeMemoryConfig() {
     }
 
@@ -75,6 +76,7 @@ public class NativeMemoryConfig {
         minBlockSize = nativeMemoryConfig.minBlockSize;
         pageSize = nativeMemoryConfig.pageSize;
         metadataSpacePercentage = nativeMemoryConfig.metadataSpacePercentage;
+        nvramMemoryConfig = nativeMemoryConfig.nvramMemoryConfig;
     }
 
     /**
@@ -214,6 +216,25 @@ public class NativeMemoryConfig {
     }
 
     /**
+     * Returns nvram memory config
+     */
+    public NvramMemoryConfig getNvramMemoryConfig() {
+        return nvramMemoryConfig;
+    }
+
+    /**
+     * Sets nvram memory config
+     *
+     * @param nvramMemoryConfig set the NvramMemoryConfig configuration to
+     *                              this configuration
+     * @return this {@link NativeMemoryConfig} instance
+     */
+    public NativeMemoryConfig setNvramMemoryConfig(NvramMemoryConfig nvramMemoryConfig) {
+        this.nvramMemoryConfig = checkNotNull(nvramMemoryConfig, "nvramMemoryConfig cannot be null");
+        return this;
+    }
+
+    /**
      * Type of memory allocator:
      * <ul>
      * <li>STANDARD: allocate/free memory using default OS memory manager</li>
@@ -259,7 +280,11 @@ public class NativeMemoryConfig {
         if (size != null ? !size.equals(that.size) : that.size != null) {
             return false;
         }
-        return allocatorType == that.allocatorType;
+        if (allocatorType != that.allocatorType) {
+            return false;
+        }
+
+        return nvramMemoryConfig != null ? nvramMemoryConfig.equals(that.nvramMemoryConfig) : that.nvramMemoryConfig == null;
     }
 
     @Override
@@ -270,6 +295,7 @@ public class NativeMemoryConfig {
         result = 31 * result + minBlockSize;
         result = 31 * result + pageSize;
         result = 31 * result + (metadataSpacePercentage != +0.0f ? Float.floatToIntBits(metadataSpacePercentage) : 0);
+        result = 31 * result + (nvramMemoryConfig != null ? nvramMemoryConfig.hashCode() : 0);
         return result;
     }
 
@@ -282,6 +308,7 @@ public class NativeMemoryConfig {
                 + ", minBlockSize=" + minBlockSize
                 + ", pageSize=" + pageSize
                 + ", metadataSpacePercentage=" + metadataSpacePercentage
+                + ", nvramMemoryConfig=" + nvramMemoryConfig
                 + '}';
     }
 }

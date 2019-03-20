@@ -21,6 +21,7 @@ import com.hazelcast.memory.MemoryUnit;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 
+import java.io.File;
 import java.nio.ByteOrder;
 import java.util.HashSet;
 import java.util.Map;
@@ -231,6 +232,22 @@ public abstract class AbstractDomConfigProcessor implements DomConfigProcessor {
         return sslConfig;
     }
 
+    protected NvramMemoryConfig parseNvramMemoryConfig(Node node) {
+        NvramMemoryConfig nvramMemoryConfig = new NvramMemoryConfig();
+        NamedNodeMap atts = node.getAttributes();
+        Node enabledNode = atts.getNamedItem("enabled");
+        boolean enabled = enabledNode != null && getBooleanValue(getTextContent(enabledNode));
+        nvramMemoryConfig.setEnabled(enabled);
+
+        for (Node n : childElements(node)) {
+            String nodeName = cleanNodeName(n);
+            if ("base-dir".equals(nodeName)) {
+                nvramMemoryConfig.setBaseDir(new File(getTextContent(n)).getAbsoluteFile());
+            }
+        }
+        return nvramMemoryConfig;
+    }
+
     protected void fillNativeMemoryConfig(Node node, NativeMemoryConfig nativeMemoryConfig) {
         final NamedNodeMap atts = node.getAttributes();
         final Node enabledNode = atts.getNamedItem("enabled");
@@ -261,6 +278,8 @@ public abstract class AbstractDomConfigProcessor implements DomConfigProcessor {
             } else if ("metadata-space-percentage".equals(nodeName)) {
                 String value = getTextContent(n);
                 nativeMemoryConfig.setMetadataSpacePercentage(Float.parseFloat(value));
+            } else if ("nvram-memory".equals(nodeName)) {
+                nativeMemoryConfig.setNvramMemoryConfig(parseNvramMemoryConfig(node));
             }
         }
     }

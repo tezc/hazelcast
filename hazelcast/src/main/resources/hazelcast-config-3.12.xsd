@@ -3351,6 +3351,19 @@
         <xs:attribute name="enabled" default="false" type="xs:boolean"/>
     </xs:complexType>
 
+    <xs:complexType name="nvram-memory">
+        <xs:all>
+            <xs:element name="base-dir" type="xs:string" minOccurs="0" maxOccurs="1" default="/mnt/mem">
+                <xs:annotation>
+                    <xs:documentation>
+                        Base directory for nvram allocations.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:all>
+        <xs:attribute name="enabled" default="false" type="xs:boolean"/>
+    </xs:complexType>
+
     <xs:complexType name="native-memory">
         <xs:all>
             <xs:element name="size" type="memory-size" minOccurs="0" maxOccurs="1"/>
@@ -3365,6 +3378,13 @@
                         <xs:maxInclusive value="95"/>
                     </xs:restriction>
                 </xs:simpleType>
+            </xs:element>
+            <xs:element name="nvram-memory" type="nvram-memory" minOccurs="0" maxOccurs="1">
+                <xs:annotation>
+                    <xs:documentation>
+                        Includes nvram memory configuration
+                    </xs:documentation>
+                </xs:annotation>
             </xs:element>
         </xs:all>
         <xs:attribute name="allocator-type" default="POOLED" type="memory-allocator-type"/>
