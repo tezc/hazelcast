@@ -56,7 +56,9 @@ public class ScheduledExecutorSubmitToAddressMessageTask
 
     @Override
     protected ScheduledExecutorSubmitToAddressCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return ScheduledExecutorSubmitToAddressCodec.decodeRequest(clientMessage);
+        parameters = ScheduledExecutorSubmitToAddressCodec.decodeRequest(clientMessage);
+        parameters.address = clientEngine.memberAddressOf(parameters.address);
+        return parameters;
     }
 
     @Override

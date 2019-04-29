@@ -65,7 +65,9 @@ public class PNCounterGetMessageTask extends AbstractAddressMessageTask<RequestP
 
     @Override
     protected PNCounterGetCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return PNCounterGetCodec.decodeRequest(clientMessage);
+        parameters = PNCounterGetCodec.decodeRequest(clientMessage);
+        parameters.targetReplica = clientEngine.memberAddressOf(parameters.targetReplica);
+        return parameters;
     }
 
     @Override

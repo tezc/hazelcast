@@ -39,6 +39,7 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.spi.properties.HazelcastProperties;
 import com.hazelcast.util.EmptyStatement;
+import com.hazelcast.util.executor.ExecutorType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,10 +65,9 @@ import java.util.logging.Level;
 
 import static com.hazelcast.instance.EndpointQualifier.MEMBER;
 import static com.hazelcast.instance.MemberImpl.NA_MEMBER_LIST_JOIN_VERSION;
-import static com.hazelcast.internal.cluster.impl.ClusterServiceImpl.EXECUTOR_NAME;
+import static com.hazelcast.internal.cluster.impl.ClusterServiceImpl.CLUSTER_EXECUTOR_NAME;
 import static com.hazelcast.internal.cluster.impl.ClusterServiceImpl.MEMBERSHIP_EVENT_EXECUTOR_NAME;
 import static com.hazelcast.internal.cluster.impl.ClusterServiceImpl.SERVICE_NAME;
-import static com.hazelcast.spi.ExecutionService.SYSTEM_EXECUTOR;
 import static com.hazelcast.spi.properties.GroupProperty.MASTERSHIP_CLAIM_TIMEOUT_SECONDS;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
@@ -82,6 +82,7 @@ import static java.util.Collections.unmodifiableSet;
 public class MembershipManager {
 
     private static final long FETCH_MEMBER_LIST_MILLIS = 5000;
+    private static final String MASTERSHIP_CLAIM_EXECUTOR_NAME = "hz:cluster:mastership";
 
     private final Node node;
     private final NodeEngineImpl nodeEngine;
@@ -123,9 +124,11 @@ public class MembershipManager {
         ExecutionService executionService = nodeEngine.getExecutionService();
         HazelcastProperties hazelcastProperties = node.getProperties();
 
+        executionService.register(MASTERSHIP_CLAIM_EXECUTOR_NAME, 1, Integer.MAX_VALUE, ExecutorType.CACHED);
+
         long memberListPublishInterval = hazelcastProperties.getSeconds(GroupProperty.MEMBER_LIST_PUBLISH_INTERVAL_SECONDS);
         memberListPublishInterval = (memberListPublishInterval > 0 ? memberListPublishInterval : 1);
-        executionService.scheduleWithRepetition(EXECUTOR_NAME, new Runnable() {
+        executionService.scheduleWithRepetition(CLUSTER_EXECUTOR_NAME, new Runnable() {
             public void run() {
                 publishMemberList();
             }
@@ -332,6 +335,7 @@ public class MembershipManager {
             handleMemberRemove(memberMapRef.get(), member);
         }
 
+        clusterService.getClusterJoinManager().insertIntoRecentlyJoinedMemberSet(addedMembers);
         sendMembershipEvents(currentMemberMap.getMembers(), addedMembers);
 
         removeFromMissingMembers(members);
@@ -601,7 +605,7 @@ public class MembershipManager {
             clusterServiceLock.unlock();
         }
 
-        ExecutorService executor = nodeEngine.getExecutionService().getExecutor(SYSTEM_EXECUTOR);
+        ExecutorService executor = nodeEngine.getExecutionService().getExecutor(MASTERSHIP_CLAIM_EXECUTOR_NAME);
         executor.submit(new DecideNewMembersViewTask(localMemberMap, membersToAsk));
     }
 
@@ -632,6 +636,9 @@ public class MembershipManager {
 
         // Make sure that all pending join requests are cancelled temporarily.
         clusterJoinManager.setMastershipClaimInProgress();
+
+        // pause migrations until mastership claim process completes
+        node.getPartitionService().pauseMigration();
 
         clusterService.setMasterAddress(node.getThisAddress());
         return true;
@@ -1210,6 +1217,17 @@ public class MembershipManager {
 
         @Override
         public void run() {
+            try {
+                innerRun();
+            } catch (Throwable e) {
+                logger.warning("Exception thrown while running DecideNewMembersViewTask", e);
+            } finally {
+                // Resume migrations, they are disabled when mastership claim is started
+                node.getPartitionService().resumeMigration();
+            }
+        }
+
+        private void innerRun() {
             MembersView newMembersView = decideNewMembersView(localMemberMap, membersToAsk);
             clusterServiceLock.lock();
             try {

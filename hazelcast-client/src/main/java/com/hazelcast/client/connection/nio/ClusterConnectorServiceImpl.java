@@ -26,6 +26,7 @@ import com.hazelcast.client.connection.Addresses;
 import com.hazelcast.client.connection.ClientConnectionStrategy;
 import com.hazelcast.client.impl.clientside.CandidateClusterContext;
 import com.hazelcast.client.impl.clientside.ClientDiscoveryService;
+import com.hazelcast.client.impl.clientside.ClientLoggingService;
 import com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl;
 import com.hazelcast.client.impl.clientside.LifecycleServiceImpl;
 import com.hazelcast.client.spi.impl.ClientExecutionServiceImpl;
@@ -150,24 +151,21 @@ public class ClusterConnectorServiceImpl implements ClusterConnectorService, Con
             fireLifecycleEvent(LifecycleEvent.LifecycleState.CLIENT_CONNECTED);
             connectionStrategy.onClusterConnect();
         } catch (ConfigurationException e) {
+            setOwnerConnectionAddress(null);
             logger.warning("Exception during initial connection to " + address + ": " + e);
             if (null != connection) {
                 connection.close("Could not connect to " + address + " as owner", e);
             }
             throw rethrow(e);
-        } catch (IllegalStateException e) {
-            logger.warning("Exception during initial connection to " + address + ": " + e);
-            if (null != connection) {
-                connection.close("Could not connect to " + address + " as owner", e);
-            }
-            throw e;
         } catch (ClientNotAllowedInClusterException e) {
+            setOwnerConnectionAddress(null);
             logger.warning("Exception during initial connection to " + address + ": " + e);
             if (null != connection) {
                 connection.close("Could not connect to " + address + " as owner", e);
             }
             throw e;
         } catch (Exception e) {
+            setOwnerConnectionAddress(null);
             logger.warning("Exception during initial connection to " + address + ": " + e);
             if (null != connection) {
                 connection.close("Could not connect to " + address + " as owner", e);
@@ -219,15 +217,21 @@ public class ClusterConnectorServiceImpl implements ClusterConnectorService, Con
 
     private void beforeClusterSwitch(CandidateClusterContext context) {
         //reset near caches, clears all near cache data
-        client.getNearCacheManager().clearAllNearCaches();
+        try {
+            client.getNearCacheManager().clearAllNearCaches();
+        } catch (Throwable e) {
+            logger.warning("Error when clearing near caches before cluster switch ", e);
+        }
         //clear the member list
-        client.getClientClusterService().beforeClusterSwitch(context);
+        client.getClientClusterService().reset();
         //clear the partition table
-        client.getClientPartitionService().beforeClusterSwitch(context);
+        client.getClientPartitionService().reset();
         //close all the connections, consequently waiting invocations get TargetDisconnectedException
         //non retryable client messages will fail immediately
         //retryable client messages will be retried but they will wait for new partition table
         client.getConnectionManager().beforeClusterSwitch(context);
+        //update logger with new group name
+        ((ClientLoggingService) client.getLoggingService()).updateGroupName(context.getName());
     }
 
     private boolean connectToCandidate(CandidateClusterContext context) {
@@ -273,7 +277,7 @@ public class ClusterConnectorServiceImpl implements ClusterConnectorService, Con
             public Void call() {
                 try {
                     connectToClusterInternal();
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     logger.warning("Could not connect to any cluster, shutting down the client: " + e.getMessage());
                     new Thread(new Runnable() {
                         @Override

@@ -54,7 +54,9 @@ public class ScheduledExecutorTaskCancelFromAddressMessageTask
 
     @Override
     protected ScheduledExecutorCancelFromAddressCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return ScheduledExecutorCancelFromAddressCodec.decodeRequest(clientMessage);
+        parameters = ScheduledExecutorCancelFromAddressCodec.decodeRequest(clientMessage);
+        parameters.address = clientEngine.memberAddressOf(parameters.address);
+        return parameters;
     }
 
     @Override

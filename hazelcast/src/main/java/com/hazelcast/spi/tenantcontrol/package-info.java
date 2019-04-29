@@ -14,28 +14,7 @@
  * limitations under the License.
  */
 
-package classloading;
-
-import com.hazelcast.test.HazelcastTestSupport;
-import org.junit.After;
-import org.junit.Before;
-
-import java.util.Set;
-
-import static classloading.ThreadLeakTestUtils.assertHazelcastThreadShutdown;
-import static classloading.ThreadLeakTestUtils.getThreads;
-
-public abstract class AbstractThreadLeakTest extends HazelcastTestSupport {
-
-    private Set<Thread> oldThreads;
-
-    @Before
-    public final void getOldThreads() {
-        oldThreads = getThreads();
-    }
-
-    @After
-    public final void assertThreadLeaks() {
-        assertHazelcastThreadShutdown(oldThreads);
-    }
-}
+/**
+ * Classes for tenant control
+ */
+package com.hazelcast.spi.tenantcontrol;

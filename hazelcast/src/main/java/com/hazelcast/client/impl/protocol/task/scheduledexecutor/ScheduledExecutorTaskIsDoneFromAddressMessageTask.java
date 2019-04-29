@@ -54,7 +54,9 @@ public class ScheduledExecutorTaskIsDoneFromAddressMessageTask
 
     @Override
     protected ScheduledExecutorIsDoneFromAddressCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return ScheduledExecutorIsDoneFromAddressCodec.decodeRequest(clientMessage);
+        parameters = ScheduledExecutorIsDoneFromAddressCodec.decodeRequest(clientMessage);
+        parameters.address = clientEngine.memberAddressOf(parameters.address);
+        return parameters;
     }
 
     @Override

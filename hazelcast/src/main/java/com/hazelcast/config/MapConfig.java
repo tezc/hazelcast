@@ -354,10 +354,10 @@ public class MapConfig implements SplitBrainMergeTypeProvider, IdentifiedDataSer
      */
     public MapConfig setEvictionPercentage(final int evictionPercentage) {
         if (evictionPercentage < MIN_EVICTION_PERCENTAGE) {
-            throw new IllegalArgumentException("eviction percentage must be greater or equal than 0");
+            throw new IllegalArgumentException("Eviction percentage must be greater than or equal to 0");
         }
         if (evictionPercentage > MAX_EVICTION_PERCENTAGE) {
-            throw new IllegalArgumentException("eviction percentage must be smaller or equal than 100");
+            throw new IllegalArgumentException("Eviction percentage must be smaller than or equal to 100");
         }
         this.evictionPercentage = evictionPercentage;
         return this;
@@ -435,7 +435,8 @@ public class MapConfig implements SplitBrainMergeTypeProvider, IdentifiedDataSer
      * idle (not touched) for more than {@code maxIdleSeconds} will get automatically evicted from the map.
      * Entry is touched if {@code get()}, {@code getAll()}, {@code put()} or {@code containsKey()} is called.
      * Any integer between {@code 0} and {@code Integer.MAX_VALUE}.
-     * {@code 0} means infinite. Default is {@code 0}.
+     * {@code 0} means infinite. Default is {@code 0}. The time precision is limited by 1 second. The MaxIdle that
+     * less than 1 second can lead to unexpected behaviour.
      *
      * @param maxIdleSeconds the maxIdleSeconds (the maximum number of seconds for each entry to stay idle in the map) to set
      */

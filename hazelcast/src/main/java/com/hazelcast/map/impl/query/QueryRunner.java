@@ -22,7 +22,6 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
-import com.hazelcast.monitor.impl.LocalMapStatsImpl;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.impl.Indexes;
 import com.hazelcast.query.impl.QueryableEntriesSegment;
@@ -83,14 +82,11 @@ public class QueryRunner {
      * @param fetchSize   the soft limit for the number of items to be queried
      * @return the queried entries along with the next {@code tableIndex} to resume querying
      */
-    @SuppressWarnings("unchecked")
     public ResultSegment runPartitionScanQueryOnPartitionChunk(Query query, int partitionId, int tableIndex, int fetchSize) {
         MapContainer mapContainer = mapServiceContext.getMapContainer(query.getMapName());
         Predicate predicate = queryOptimizer.optimize(query.getPredicate(), mapContainer.getIndexes(partitionId));
         QueryableEntriesSegment entries = partitionScanExecutor
                 .execute(query.getMapName(), predicate, partitionId, tableIndex, fetchSize);
-
-        updateStatistics(mapContainer);
 
         ResultProcessor processor = resultProcessorRegistry.get(query.getResultType());
         Result result = processor.populateResult(query, Long.MAX_VALUE, entries.getEntries(), singletonList(partitionId));
@@ -100,7 +96,6 @@ public class QueryRunner {
 
     // MIGRATION SAFE QUERYING -> MIGRATION STAMPS ARE VALIDATED (does not have to run on a partition thread)
     // full query = index query (if possible), then partition-scan query
-    @SuppressWarnings("unchecked")
     public Result runIndexOrPartitionScanQueryOnOwnedPartitions(Query query) {
         int migrationStamp = getMigrationStamp();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
@@ -128,7 +123,6 @@ public class QueryRunner {
             result = populateNonEmptyResult(query, entries, initialPartitions);
         }
 
-        updateStatistics(mapContainer);
         return result;
     }
 
@@ -149,7 +143,6 @@ public class QueryRunner {
      * @return the result of the query; if the result has {@code null} {@link
      * Result#getPartitionIds() partition IDs} this indicates a failure.
      */
-    @SuppressWarnings("unchecked")
     public Result runIndexQueryOnOwnedPartitions(Query query) {
         int migrationStamp = getMigrationStamp();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
@@ -175,13 +168,11 @@ public class QueryRunner {
             result = populateNonEmptyResult(query, entries, initialPartitions);
         }
 
-        updateStatistics(mapContainer);
         return result;
     }
 
     // MIGRATION UNSAFE QUERYING - MIGRATION STAMPS ARE NOT VALIDATED, so assumes a run on partition-thread
     // for a single partition. If the index is global it won't be asked
-    @SuppressWarnings("unchecked")
     public Result runPartitionIndexOrPartitionScanQueryOnGivenOwnedPartition(Query query, int partitionId) {
         MapContainer mapContainer = mapServiceContext.getMapContainer(query.getMapName());
         List<Integer> partitions = singletonList(partitionId);
@@ -204,11 +195,9 @@ public class QueryRunner {
             result = populateNonEmptyResult(query, entries, partitions);
         }
 
-        updateStatistics(mapContainer);
         return result;
     }
 
-    @SuppressWarnings("unchecked")
     Result runPartitionScanQueryOnGivenOwnedPartition(Query query, int partitionId) {
         MapContainer mapContainer = mapServiceContext.getMapContainer(query.getMapName());
         Predicate predicate = queryOptimizer.optimize(query.getPredicate(), mapContainer.getIndexes(partitionId));
@@ -299,12 +288,5 @@ public class QueryRunner {
 
     private boolean validateMigrationStamp(int migrationStamp) {
         return mapServiceContext.getService().validateMigrationStamp(migrationStamp);
-    }
-
-    private void updateStatistics(MapContainer mapContainer) {
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
-            LocalMapStatsImpl localStats = localMapStatsProvider.getLocalMapStatsImpl(mapContainer.getName());
-            localStats.incrementOtherOperations();
-        }
     }
 }

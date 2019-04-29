@@ -607,6 +607,8 @@ public class MigrationManager {
         migrationQueue.clear();
         activeMigrationInfo = null;
         completedMigrations.clear();
+        shutdownRequestedMembers.clear();
+        migrationTasksAllowed.set(true);
     }
 
     void start() {
@@ -712,6 +714,22 @@ public class MigrationManager {
         return stats;
     }
 
+    // RU_COMPAT_3_11
+    void onClusterVersionChange(Version newVersion) {
+        if (newVersion.isEqualTo(Versions.V3_12)) {
+            partitionServiceLock.lock();
+            try {
+                // Cluster version & state changes are safepoints for migrations.
+                // We know that all cluster members have the same partition table.
+                // We can safely clear completed migrations.
+                assert activeMigrationInfo == null : "Active migration: " + activeMigrationInfo;
+                completedMigrations.clear();
+            } finally {
+                partitionServiceLock.unlock();
+            }
+        }
+    }
+
     /**
      * Invoked on the master node. Rearranges the partition table if there is no recent activity in the cluster after
      * this task has been scheduled, schedules migrations and syncs the partition state.
@@ -793,14 +811,18 @@ public class MigrationManager {
                 }
             }
             if (!partitions.isEmpty()) {
-                logger.warning("Assigning new owners for " + partitions.size() + " LOST partitions!");
                 PartitionReplica[][] state = partitionStateManager.repartition(shutdownRequestedMembers, partitions);
-                for (int partitionId : partitions) {
-                    InternalPartitionImpl partition = partitionStateManager.getPartitionImpl(partitionId);
-                    PartitionReplica[] replicas = state[partitionId];
+                if (state != null) {
+                    logger.warning("Assigning new owners for " + partitions.size() + " LOST partitions!");
+                    for (int partitionId : partitions) {
+                        InternalPartitionImpl partition = partitionStateManager.getPartitionImpl(partitionId);
+                        PartitionReplica[] replicas = state[partitionId];
 
-                    assignLostPartitionOwner(partition, replicas[0]);
-                    partition.setReplicas(replicas);
+                        assignLostPartitionOwner(partition, replicas[0]);
+                        partition.setReplicas(replicas);
+                    }
+                } else {
+                    logger.warning("Unable to assign LOST partitions");
                 }
             }
         }

@@ -57,7 +57,9 @@ public class ScheduledExecutorTaskGetStatisticsFromAddressMessageTask
 
     @Override
     protected ScheduledExecutorGetStatsFromAddressCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return ScheduledExecutorGetStatsFromAddressCodec.decodeRequest(clientMessage);
+        parameters = ScheduledExecutorGetStatsFromAddressCodec.decodeRequest(clientMessage);
+        parameters.address = clientEngine.memberAddressOf(parameters.address);
+        return parameters;
     }
 
     @Override

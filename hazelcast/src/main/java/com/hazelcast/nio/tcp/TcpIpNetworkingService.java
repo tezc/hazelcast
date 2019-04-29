@@ -121,18 +121,14 @@ public class TcpIpNetworkingService
                                      ChannelInitializerProvider channelInitializerProvider,
                                      HazelcastProperties properties) {
         if (unifiedEndpointManager != null) {
-            //todo (TK): have separate view for REST & Memcache? might require further changes to JMX & MC REST
-            TextViewUnifiedEndpointManager textViewUnifiedEndpointManager
-                    = new TextViewUnifiedEndpointManager(unifiedEndpointManager);
-
             endpointManagers.put(MEMBER, new MemberViewUnifiedEndpointManager(unifiedEndpointManager));
             endpointManagers.put(CLIENT, new ClientViewUnifiedEndpointManager(unifiedEndpointManager));
-            endpointManagers.put(REST, textViewUnifiedEndpointManager);
-            endpointManagers.put(MEMCACHE, textViewUnifiedEndpointManager);
+            endpointManagers.put(REST,  new TextViewUnifiedEndpointManager(unifiedEndpointManager, true));
+            endpointManagers.put(MEMCACHE,  new TextViewUnifiedEndpointManager(unifiedEndpointManager, false));
         } else {
             for (EndpointConfig endpointConfig : config.getAdvancedNetworkConfig().getEndpointConfigs().values()) {
                 EndpointQualifier qualifier = endpointConfig.getQualifier();
-                EndpointManager em = newEndpointManager(ioService, qualifier, channelInitializerProvider,
+                EndpointManager em = newEndpointManager(ioService, endpointConfig, channelInitializerProvider,
                         loggingService, metricsRegistry, properties, singleton(endpointConfig.getProtocolType()));
                 endpointManagers.put(qualifier, em);
             }
@@ -140,13 +136,13 @@ public class TcpIpNetworkingService
     }
 
     private EndpointManager<TcpIpConnection> newEndpointManager(IOService ioService,
-                                                                EndpointQualifier qualifier,
+                                                                EndpointConfig endpointConfig,
                                                                 ChannelInitializerProvider channelInitializerProvider,
                                                                 LoggingService loggingService,
                                                                 MetricsRegistry metricsRegistry,
                                                                 HazelcastProperties properties,
                                                                 Set<ProtocolType> supportedProtocolTypes) {
-        return new TcpIpEndpointManager(this, qualifier, channelInitializerProvider, ioService, loggingService,
+        return new TcpIpEndpointManager(this, endpointConfig, channelInitializerProvider, ioService, loggingService,
                 metricsRegistry, properties, supportedProtocolTypes);
     }
 

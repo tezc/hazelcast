@@ -66,7 +66,9 @@ public class ExecutorServiceSubmitToAddressMessageTask
 
     @Override
     protected ExecutorServiceSubmitToAddressCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return ExecutorServiceSubmitToAddressCodec.decodeRequest(clientMessage);
+        parameters = ExecutorServiceSubmitToAddressCodec.decodeRequest(clientMessage);
+        parameters.address = clientEngine.memberAddressOf(parameters.address);
+        return parameters;
     }
 
     @Override
