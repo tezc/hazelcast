@@ -1508,6 +1508,15 @@ public class ConfigXmlGenerator {
                 .node("page-size", nativeMemoryConfig.getPageSize())
                 .node("metadata-space-percentage", nativeMemoryConfig.getMetadataSpacePercentage())
                 .close();
+
+        NvramMemoryConfig nvramMemoryConfig = nativeMemoryConfig.getNvramMemoryConfig();
+        if (nvramMemoryConfig.isEnabled()) {
+            gen.open("nvram-memory",
+                    "enabled", true)
+                    .node("base-dir", nvramMemoryConfig.getBaseDir().getAbsolutePath())
+                    .close();
+
+        }
     }
 
     private static void servicesXmlGenerator(XmlGenerator gen, Config config) {

@@ -236,7 +236,7 @@ public abstract class AbstractDomConfigProcessor implements DomConfigProcessor {
         NvramMemoryConfig nvramMemoryConfig = new NvramMemoryConfig();
         NamedNodeMap atts = node.getAttributes();
         Node enabledNode = atts.getNamedItem("enabled");
-        boolean enabled = enabledNode != null && getBooleanValue(getTextContent(enabledNode));
+        final boolean enabled = enabledNode != null && getBooleanValue(getTextContent(enabledNode));
         nvramMemoryConfig.setEnabled(enabled);
 
         for (Node n : childElements(node)) {
@@ -279,7 +279,7 @@ public abstract class AbstractDomConfigProcessor implements DomConfigProcessor {
                 String value = getTextContent(n);
                 nativeMemoryConfig.setMetadataSpacePercentage(Float.parseFloat(value));
             } else if ("nvram-memory".equals(nodeName)) {
-                nativeMemoryConfig.setNvramMemoryConfig(parseNvramMemoryConfig(node));
+                nativeMemoryConfig.setNvramMemoryConfig(parseNvramMemoryConfig(n));
             }
         }
     }
